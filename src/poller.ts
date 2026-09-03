@@ -1,0 +1,53 @@
+import { config } from './config.js';
+import { fetchCandles } from './market/twelvedata.js';
+import { runLiquidityStrategy } from './strategy.js';
+import { formatSignalMessage } from './format.js';
+import { sendTelegramMessage } from './telegram.js';
+
+const SYMBOLS = ['EUR/USD', 'GBP/USD'];
+const POLL_INTERVAL_MS = 15 * 60 * 1000;
+
+// In-memory only for this MVP: resets on redeploy/restart, meaning a swing
+// that was already swept before a restart could theoretically re-alert
+// once. Acceptable for an alert-only system (worst case: one duplicate
+// message); flagged here rather than silently assumed durable.
+const sweptBySymbol = new Map<string, Set<number>>();
+const alertedReactionKeys = new Set<string>();
+
+async function pollOnce() {
+  for (const symbol of SYMBOLS) {
+    try {
+      const structureCandles = await fetchCandles(config.TWELVEDATA_API_KEY, symbol, '4h', 80);
+      const entryCandles = await fetchCandles(config.TWELVEDATA_API_KEY, symbol, '15min', 60);
+
+      const swept = sweptBySymbol.get(symbol) ?? new Set<number>();
+      sweptBySymbol.set(symbol, swept);
+
+      const signal = runLiquidityStrategy({
+        symbol,
+        structureCandles,
+        entryCandles,
+        alreadySweptOpenTimesMs: swept,
+        nowMs: Date.now()
+      });
+
+      if (signal) {
+        const key = `${symbol}:${signal.sweptSwing.openTimeMs}:${signal.reactionCandleIndex}`;
+        if (!alertedReactionKeys.has(key)) {
+          alertedReactionKeys.add(key);
+          swept.add(signal.sweptSwing.openTimeMs);
+          await sendTelegramMessage(formatSignalMessage(signal));
+          console.log(`[poller] sent signal for ${symbol}`, signal);
+        }
+      }
+    } catch (err) {
+      console.error(`[poller] error for ${symbol}:`, err);
+    }
+  }
+}
+
+export function startPoller() {
+  console.log('[poller] starting, interval =', POLL_INTERVAL_MS, 'ms');
+  pollOnce();
+  setInterval(pollOnce, POLL_INTERVAL_MS);
+}
