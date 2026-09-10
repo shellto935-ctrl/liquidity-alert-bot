@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Alert-only liquidity-sweep-reversal forex signal bot (Twelve Data + Telegram)",
   "main": "dist/server.js",
+  "engines": {
+    "node": "20.x"
+  },
   "directories": {
     "test": "test"
   },
