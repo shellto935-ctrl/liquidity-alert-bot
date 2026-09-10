@@ -10,6 +10,7 @@ export const config = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? '',
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID ?? '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? '',
   AI_AGENT_ENABLED: (process.env.AI_AGENT_ENABLED ?? 'false').toLowerCase() === 'true',
   DRY_RUN: (process.env.DRY_RUN ?? 'true').toLowerCase() === 'true',
   BACKTEST_ENABLED: (process.env.BACKTEST_ENABLED ?? 'false').toLowerCase() === 'true',
@@ -26,6 +27,6 @@ export function assertLiveConfig() {
     required('TELEGRAM_CHAT_ID');
   }
   if (config.AI_AGENT_ENABLED) {
-    required('ANTHROPIC_API_KEY');
+    required('GEMINI_API_KEY');
   }
 }

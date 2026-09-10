@@ -7,7 +7,12 @@ const PROMPT_PREFIX = `You are reviewing an automated forex "liquidity sweep rev
 3. Give a one-line verdict: LOOKS VALID, BORDERLINE, or LOOKS WEAK.
 Keep your whole reply under 80 words. This is not financial advice and you are not placing any trade — you are only annotating an alert for a human to review themselves.`;
 
-export async function reviewSignalWithClaude(chartPng: Buffer, signal: LiquiditySignal): Promise<string> {
+// Uses Google's Interactions API (the current recommended Gemini API as of
+// mid-2026 — the older generateContent endpoint still works but this is
+// what Google's own docs point new integrations to). See:
+// https://ai.google.dev/gemini-api/docs/interactions-overview
+// https://ai.google.dev/gemini-api/docs/image-understanding
+export async function reviewSignalWithGemini(chartPng: Buffer, signal: LiquiditySignal): Promise<string> {
   const base64Image = chartPng.toString('base64');
 
   const signalSummary = `Symbol: ${signal.symbol}
@@ -17,32 +22,41 @@ Entry: ${signal.entryPrice}
 Stop-loss: ${signal.stopLoss}
 Target: ${signal.takeProfit}`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': config.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
+      'x-goog-api-key': config.GEMINI_API_KEY
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-5',
-      max_tokens: 300,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: PROMPT_PREFIX + '\n\n' + signalSummary },
-            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64Image } }
-          ]
-        }
+      model: 'gemini-3.8-flash',
+      input: [
+        { type: 'text', text: PROMPT_PREFIX + '\n\n' + signalSummary },
+        { type: 'image', data: base64Image, mime_type: 'image/png' }
       ]
     })
   });
 
   if (!res.ok) {
-    throw new Error(`Claude API failed: ${res.status} ${await res.text()}`);
+    throw new Error(`Gemini API failed: ${res.status} ${await res.text()}`);
   }
-  const data = (await res.json()) as { content: { type: string; text?: string }[] };
-  const text = data.content.find((c) => c.type === 'text')?.text;
-  return text ?? '(Claude did not return a text review)';
+  const data = (await res.json()) as Record<string, unknown>;
+
+  // Defensive parsing: the Interactions API's official SDKs expose a
+  // convenience `output_text` field. We read it directly from the REST
+  // response first; if Google's raw JSON shape differs from the SDK
+  // convenience field, fall back to walking the `output` steps array
+  // rather than crashing, and log the raw shape once so it can be fixed.
+  if (typeof data.output_text === 'string') return data.output_text;
+
+  const output = data.output as { content?: { type: string; text?: string }[] }[] | undefined;
+  if (Array.isArray(output)) {
+    for (const step of output) {
+      const textPart = step.content?.find((c) => c.type === 'text')?.text;
+      if (textPart) return textPart;
+    }
+  }
+
+  console.error('[ai-agent] unrecognized Gemini response shape:', JSON.stringify(data).slice(0, 500));
+  return '(Gemini did not return a recognizable text review)';
 }
