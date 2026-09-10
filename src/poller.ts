@@ -2,9 +2,11 @@ import { config } from './config.js';
 import { fetchCandles } from './market/twelvedata.js';
 import { runLiquidityStrategy } from './strategy.js';
 import { formatSignalMessage } from './format.js';
-import { sendTelegramMessage } from './telegram.js';
+import { sendTelegramMessage, sendTelegramPhoto } from './telegram.js';
+import { buildSignalChartPng } from './chart.js';
+import { reviewSignalWithClaude } from './ai-agent.js';
 
-const SYMBOLS = ['EUR/USD', 'GBP/USD'];
+const SYMBOLS = ['EUR/USD', 'GBP/USD', 'XAU/USD'];
 const POLL_INTERVAL_MS = 15 * 60 * 1000;
 
 // In-memory only for this MVP: resets on redeploy/restart, meaning a swing
@@ -36,7 +38,23 @@ async function pollOnce() {
         if (!alertedReactionKeys.has(key)) {
           alertedReactionKeys.add(key);
           swept.add(signal.sweptSwing.openTimeMs);
-          await sendTelegramMessage(formatSignalMessage(signal));
+
+          const baseMessage = formatSignalMessage(signal);
+
+          if (config.AI_AGENT_ENABLED) {
+            try {
+              const chartPng = await buildSignalChartPng(entryCandles, signal);
+              const review = await reviewSignalWithClaude(chartPng, signal);
+              const combined = `${baseMessage}\n\n🤖 *Claude-এর review:*\n${review}`;
+              await sendTelegramPhoto(chartPng, combined);
+            } catch (err) {
+              console.error(`[poller] AI review failed for ${symbol}, sending plain alert instead:`, err);
+              await sendTelegramMessage(baseMessage);
+            }
+          } else {
+            await sendTelegramMessage(baseMessage);
+          }
+
           console.log(`[poller] sent signal for ${symbol}`, signal);
         }
       }

@@ -9,6 +9,8 @@ export const config = {
   TWELVEDATA_API_KEY: process.env.TWELVEDATA_API_KEY ?? '',
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ?? '',
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID ?? '',
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
+  AI_AGENT_ENABLED: (process.env.AI_AGENT_ENABLED ?? 'false').toLowerCase() === 'true',
   DRY_RUN: (process.env.DRY_RUN ?? 'true').toLowerCase() === 'true',
   BACKTEST_ENABLED: (process.env.BACKTEST_ENABLED ?? 'false').toLowerCase() === 'true',
   // How many days of history to pull for the one-shot backtest report.
@@ -22,5 +24,8 @@ export function assertLiveConfig() {
   if (!config.DRY_RUN) {
     required('TELEGRAM_BOT_TOKEN');
     required('TELEGRAM_CHAT_ID');
+  }
+  if (config.AI_AGENT_ENABLED) {
+    required('ANTHROPIC_API_KEY');
   }
 }
