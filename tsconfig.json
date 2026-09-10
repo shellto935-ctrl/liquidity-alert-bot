@@ -5,11 +5,12 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "types": ["node"],
+    "rootDir": "src",
     "outDir": "dist",
     "declaration": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "test"]
+  "include": ["src"]
 }
