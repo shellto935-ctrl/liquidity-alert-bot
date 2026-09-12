@@ -1,46 +1,46 @@
-# Liquidity-Sweep Alert Bot (Twelve Data + Telegram) — Ready to deploy
+# SignalKit — Free, self-hosted Telegram trading-alert bot (bring your own strategy)
 
-**Alert-only.** Reads Twelve Data candles (4H structure + 15m entry timeframe),
-runs the liquidity-sweep-reversal strategy, sends a Bengali Telegram message
-with pair, direction, entry, stop-loss, and projected/target price. There is
-no order-placement code anywhere in this repo — it cannot trade for you.
+**What this repo is, in one sentence:** code that watches market prices,
+checks them against a trading strategy you can fully customize, and — when
+a valid setup appears — sends you a Telegram message with a chart image and
+an AI (Google Gemini, free tier) second-opinion review.
 
-## Status
-- Core strategy logic: 12/12 tests passing (`structure`, `sweep`, `reaction`, `strategy`, `format`)
-- Twelve Data client, Telegram sender, live poller, one-shot backtest job: written, NOT yet run against real data
-- Not yet deployed
+**What this repo is NOT:**
+- Not auto-trading software. It never places an order anywhere, on any
+  broker, ever. It only sends a Telegram message.
+- Not tied to one specific strategy. It ships with one example strategy
+  (a "liquidity sweep reversal" pattern) but is built so the strategy logic
+  is a swappable module — see `CUSTOM_STRATEGY_GUIDE.md`.
+- Not financial advice, and it does not guarantee profit or any win rate.
 
-## How it works live
-Every 15 minutes: fetch recent 4H + 15m candles for EUR/USD and GBP/USD →
-run the strategy → if a fresh ENTRY_READY signal appears, send it to Telegram
-(unless `DRY_RUN=true`, in which case it only logs).
+## The three documents in this repo, and when to read each
 
-## Backtest (run automatically on startup if enabled)
-Set `BACKTEST_ENABLED=true` to have the server pull the last `BACKTEST_DAYS`
-(default 45) of history once at startup and log a signals-per-day / per-month
-estimate before starting the live poller. **Caveat, logged by the code
-itself**: this harvests all signals from the full historical window at once,
-giving structure detection a slight look-ahead advantage the live poller
-won't have — treat the reported numbers as an optimistic upper bound, not a
-guarantee.
+| File | Read this if... |
+|---|---|
+| `SETUP_GUIDE.md` | You just want to run the included example strategy as-is |
+| `GPT_SETUP_PROMPT.md` | You want an AI assistant (ChatGPT, Claude, etc. — anything with GitHub + Railway access) to set the whole thing up for you automatically |
+| `CUSTOM_STRATEGY_GUIDE.md` | You have your own trading idea and want to replace the example strategy with it |
 
-## Required Railway environment variables
-- `TWELVEDATA_API_KEY`
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
-- `DRY_RUN` — `true` while validating, `false` to actually send Telegram messages
-- `BACKTEST_ENABLED` — `true` to run the one-shot backtest on this startup
-- `BACKTEST_DAYS` — optional, default 45
+## Required free accounts (all free-tier, no cost to start)
+1. **GitHub** — github.com — holds the code
+2. **Railway** — railway.com — runs the code 24/7 (free trial credit, then a
+   few dollars/month to keep it running continuously — see Railway's own
+   pricing page for current numbers)
+3. **Twelve Data** — twelvedata.com — free market-data API key
+4. **Telegram** — via the **@BotFather** bot inside Telegram — free bot + token
+5. **Google Gemini** — https://aistudio.google.com/apikey — free-tier API key
+   for the chart review step (sign in with any Google account, click
+   "Create API key")
 
-## Deploy
-1. Create a new GitHub repo, upload this folder's contents (or push via git).
-2. In Railway: New Project → Deploy from GitHub repo → select it.
-3. Set the environment variables above in the service's Variables tab.
-4. Railway will run `npm ci && npm run build` then `npm start` (see `railway.json`).
-5. Check the Deploy Logs for the `[backtest]` report if `BACKTEST_ENABLED=true`.
+## Fastest path: let an AI assistant do it
+Open `GPT_SETUP_PROMPT.md`, fill in the two blanks at the top (your GitHub
+username and a name for your new repo), and paste the whole thing into an AI
+assistant that has GitHub and Railway connected. It will copy this repo
+under your account, deploy it, and walk you through adding your API keys.
 
-## Local dev
-    npm install
-    npm run check   # typecheck
-    npm test        # 12 unit tests, no network needed
-    npm run build && npm start   # needs real env vars to do anything live
+## Manual path
+See the numbered steps in `SETUP_GUIDE.md`.
+
+## License / usage
+Free to copy, modify, and redistribute for your own use. If you build
+something with it, a credit/link back is appreciated but not required.
